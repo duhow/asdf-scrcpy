@@ -27,13 +27,31 @@ sort_versions() {
 list_github_tags() {
 	git ls-remote --tags --refs "$GH_REPO" |
 		grep -o 'refs/tags/.*' | cut -d/ -f3- |
-		sed 's/^v//' # NOTE: You might want to adapt this sed to remove non-version strings from tags
+		sed 's/^v//'
 }
 
 list_all_versions() {
-	# TODO: Adapt this. By default we simply list the tag names from GitHub releases.
-	# Change this function if scrcpy has other means of determining installable versions.
 	list_github_tags
+}
+
+get_platform() {
+  local -r kernel="$(uname -s)"
+  if [[ ${OSTYPE} == "msys" || ${kernel} == "CYGWIN"* || ${kernel} == "MINGW"* ]]; then
+    echo windows
+  else
+    uname | tr '[:upper:]' '[:lower:]'
+  fi
+}
+
+get_filename() {
+  local platform
+  platform=`get_platform`
+
+  if [ "$platform" == "linux" ]; then
+    echo "${TOOL_NAME}-server-v${version}"
+  elif [ "$platform" == "windows" ]; then
+    echo "${TOOL_NAME}-win64-v${version}.zip"
+  fi
 }
 
 download_release() {
@@ -41,10 +59,9 @@ download_release() {
 	version="$1"
 	filename="$2"
 
-	# TODO: Adapt the release URL convention for scrcpy
-	url="$GH_REPO/archive/v${version}.tar.gz"
+	url="$GH_REPO/releases/download/v${version}/`get_filename`"
 
-	echo "* Downloading $TOOL_NAME release $version..."
+	echo "* Downloading $TOOL_NAME release $version for `get_platform`..."
 	curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
 }
 
